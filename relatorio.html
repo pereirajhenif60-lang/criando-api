@@ -1,0 +1,71 @@
+<!doctype html>
+<html lang="pt-br">
+<head>
+  <meta charset="utf-8">
+  <title>Relatório de Despesas</title>
+  
+</head>
+<body>
+  <h1>Relatório de Despesas</h1>
+  <p>Usuário: {{ usuario }}</p>
+
+  <form method="get" action="{{ url_for('relatorio') }}">
+    <label>
+      Categoria:
+      <select name="categoria">
+        <option value="">Todas</option>
+        {% for cat in categorias %}
+          <option value="{{ cat }}" {% if cat == categoria_selecionada %}selected{% endif %}>{{ cat }}</option>
+        {% endfor %}
+      </select>
+    </label>
+
+    <label>
+      Mês:
+      <select name="mes">
+        <option value="">Todos</option>
+        {% for m in meses %}
+          <option value="{{ m }}" {% if m == mes_selecionado %}selected{% endif %}>{{ m }}</option>
+        {% endfor %}
+      </select>
+    </label>
+
+    <button type="submit">Filtrar</button>
+  </form>
+
+  <div style="margin:20px 0;">
+    <img src="{{ url_for('static', filename=grafico_relatorio) }}"
+         alt="Gráfico de despesas"
+         style="max-width:100%; height:auto;">
+  </div>
+
+  <table border="1" cellpadding="6" cellspacing="0">
+    <thead>
+      <tr>
+        <th>ID</th>
+        <th>Descrição</th>
+        <th>Valor</th>
+        <th>Categoria</th>
+        <th>Mês</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for despesa in despesas %}
+        <tr>
+          <td>{{ despesa.id }}</td>
+          <td>{{ despesa.descricao }}</td>
+          <td>R$ {{ "%.2f"|format(despesa.valor) }}</td>
+          <td>{{ despesa.categoria }}</td>
+          <td>{{ despesa.mes }}</td>
+        </tr>
+      {% endfor %}
+    </tbody>
+    <tfoot>
+      <tr>
+        <td colspan="4"><strong>Total</strong></td>
+        <td><strong>R$ {{ "%.2f"|format(total) }}</strong></td>
+      </tr>
+    </tfoot>
+  </table>
+</body>
+</html>
