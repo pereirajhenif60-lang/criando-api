@@ -1,133 +1,98 @@
 <!DOCTYPE html>
 <html lang="pt-br">
 <head>
-  
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Controle de Despesas</title>
-  <link rel="stylesheet" href="{{ url_for('static', filename='styles.css') }}" />
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Previsão do Tempo</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}" />
 </head>
-
 <body>
-  <header>
-    <div class="header-left">
-      <h1>Controle de Despesas</h1>
-      <p class="user-info">Olá, {{ usuario }}</p>
-    </div>
-    <nav>
-      <a href="#filtros">Filtros</a>
-      <a href="#nova-despesa">Adicionar</a>
-      <a href="#relatorio">Relatório</a>
-      <a href="#lista">Lista</a>
-      <a class="logout" href="{{ url_for('logout') }}">Sair</a>
-    </nav>
-  </header>
+    <main class="page">
+        <header class="hero">
+            <h1>Previsão do Tempo</h1>
+            <p>Previsão em tempo real para as principais cidades e busca por cidades do Brasil.</p>
+        </header>
 
-  <main class="container">
-    <section class="card" id="filtros">
-      <h2>Menu de Filtros</h2>
-      <form class="menu-form" method="get" action="/">
-        <select name="categoria">
-          <option value="">Todas as categorias</option>
-          {% for categoria in categorias %}
-          <option value="{{ categoria }}" {% if categoria == categoria_selecionada %}selected{% endif %}>{{ categoria }}</option>
-          {% endfor %}
-        </select>
+        <section class="search-panel">
+            <form id="search-form">
+                <input id="search-city" type="text" placeholder="Digite uma cidade do Brasil" />
+                <input id="search-state" type="text" placeholder="Estado (sigla ou nome)" />
+                <button type="submit">Buscar</button>
+            </form>
+            <div id="search-result" class="search-result"></div>
+        </section>
 
-        <select name="mes">
-          <option value="">Todos os meses</option>
-          {% for mes in meses %}
-          <option value="{{ mes }}" {% if mes == mes_selecionado %}selected{% endif %}>{{ mes }}</option>
-          {% endfor %}
-        </select>
+        <section id="city-grid" class="city-grid">
+            <div class="loader">Carregando previsões...</div>
+        </section>
+    </main>
 
-        <button type="submit">Filtrar</button>
-      </form>
-    </section>
+    <script>
+        const cityGrid = document.getElementById("city-grid");
+        const searchForm = document.getElementById("search-form");
+        const searchResult = document.getElementById("search-result");
 
-    <section class="card" id="nova-despesa">
-      <h2>Adicionar nova despesa</h2>
-      <form class="menu-form" method="post" action="/despesas">
-        <input type="text" name="descricao" placeholder="Descrição" required />
-        <input type="number" step="0.01" name="valor" placeholder="Valor" required />
-        <select name="categoria" required>
-          <option value="">Selecionar categoria</option>
-          {% for categoria in categorias %}
-          <option value="{{ categoria }}">{{ categoria }}</option>
-          {% endfor %}
-        </select>
-        <select name="mes" required>
-          <option value="">Selecionar mês</option>
-          {% for mes in meses %}
-          <option value="{{ mes }}">{{ mes }}</option>
-          {% endfor %}
-        </select>
-        <button type="submit">Cadastrar despesa</button>
-      </form>
-    </section>
+        function createCard(item) {
+            const card = document.createElement("article");
+            card.className = "card";
+            card.innerHTML = `
+                <h2>${item.cidade}</h2>
+                <p class="desc">${item.descricao || "Sem dados"}</p>
+                <div class="metrics">
+                    <span>🌡 ${item.temperatura ?? "--"} °C</span>
+                    <span>🌬 ${item.vento_kmph ?? "--"} km/h</span>
+                    <span>💧 ${item.umidade ?? "--"}%</span>
+                </div>
+                <div class="footer">
+                    <span>Sensação: ${item.sensacao_termica ?? "--"} °C</span>
+                    ${item.erro ? `<p class="error">${item.erro}</p>` : ""}
+                </div>`;
+            return card;
+        }
 
-    <section class="card" id="relatorio">
-      <h2>Relatório e Totais</h2>
-      <p class="total">Total filtrado: R$ {{ "%.2f"|format(total) }}</p>
-      {% for grupo in grupos %}
-      <article class="group-card">
-        <h3>{{ grupo.nome }} - Total: R$ {{ "%.2f"|format(grupo.total) }}</h3>
-        <table>
-          <thead>
-            <tr>
-              <th>Descrição</th>
-              <th>Valor</th>
-              <th>Mês</th>
-            </tr>
-          </thead>
-          <tbody>
-            {% for despesa in grupo.despesas %}
-            <tr>
-              <td>{{ despesa.descricao }}</td>
-              <td>R$ {{ "%.2f"|format(despesa.valor) }}</td>
-              <td>{{ despesa.mes }}</td>
-            </tr>
-            {% endfor %}
-          </tbody>
-        </table>
-      </article>
-      {% endfor %}
-    </section>
+        async function loadWeather() {
+            try {
+                const response = await fetch("/api/weather/goias");
+                const data = await response.json();
+                cityGrid.innerHTML = "";
+                if (!Array.isArray(data)) {
+                    cityGrid.innerHTML = `<div class="error">Erro: ${data.erro || "Resposta inválida"}</div>`;
+                    return;
+                }
+                data.forEach(item => cityGrid.appendChild(createCard(item)));
+            } catch (err) {
+                cityGrid.innerHTML = `<div class="error">Não foi possível carregar as previsões.</div>`;
+            }
+        }
 
-    <section class="card" id="lista">
-      <h2>Lista de Despesas</h2>
-      <table>
-        <thead>
-          <tr>
-            <th>ID</th>
-            <th>Descrição</th>
-            <th>Valor</th>
-            <th>Categoria</th>
-            <th>Mês</th>
-            <th>Ações</th>
-          </tr>
-        </thead>
-        <tbody>
-          {% for despesa in despesas %}
-          <tr>
-            <td>{{ despesa.id }}</td>
-            <td>{{ despesa.descricao }}</td>
-            <td>R$ {{ "%.2f"|format(despesa.valor) }}</td>
-            <td>{{ despesa.categoria }}</td>
-            <td>{{ despesa.mes }}</td>
-            <td class="actions">
-              <form method="post" action="/despesas/excluir/{{ despesa.id }}">
-                <button type="submit">Excluir</button>
-              </form>
-            </td>
-          </tr>
-          {% endfor %}
-        </tbody>
-      </table>
-      <form method="post" action="/despesas/limpar" class="clear-form">
-        <button type="submit">Limpar tudo</button>
-      </form>
-    </section>
-  </main>
+        async function searchCity(city, state) {
+            searchResult.innerHTML = `<div class="loader">Buscando ${city}${state ? ", " + state : ""}...</div>`;
+            try {
+                const response = await fetch(`/api/weather?city=${encodeURIComponent(city)}&state=${encodeURIComponent(state)}`);
+                const data = await response.json();
+                searchResult.innerHTML = "";
+                if (data.erro) {
+                    searchResult.innerHTML = `<div class="error">${data.erro}</div>`;
+                    return;
+                }
+                searchResult.appendChild(createCard(data));
+            } catch (err) {
+                searchResult.innerHTML = `<div class="error">Erro ao buscar a cidade.</div>`;
+            }
+        }
+
+        searchForm.addEventListener("submit", event => {
+            event.preventDefault();
+            const city = document.getElementById("search-city").value.trim();
+            const state = document.getElementById("search-state").value.trim();
+            if (!city) {
+                searchResult.innerHTML = `<div class="error">Digite o nome de uma cidade.</div>`;
+                return;
+            }
+            searchCity(city, state);
+        });
+
+        window.addEventListener("DOMContentLoaded", loadWeather);
+    </script>
 </body>
 </html>
